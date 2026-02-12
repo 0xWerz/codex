@@ -2445,8 +2445,15 @@ impl ChatComposer {
             FlushResult::Paste(pasted) => {
                 if is_probable_spurious_malloc_stacklogging_text(&pasted) {
                     tracing::debug!(
-                        "dropping probable terminal diagnostic from paste burst: {pasted}"
+                        "quarantining probable terminal diagnostic from paste burst: {pasted}"
                     );
+                    let pasted = pasted.replace("\r\n", "\n").replace('\r', "\n");
+                    let char_count = pasted.chars().count();
+                    let placeholder = self.next_large_paste_placeholder(char_count);
+                    self.textarea.insert_element(&placeholder);
+                    self.pending_pastes.push((placeholder, pasted));
+                    self.paste_burst.clear_after_explicit_paste();
+                    self.sync_popups();
                     return true;
                 }
                 self.handle_paste(pasted);
@@ -7667,7 +7674,7 @@ mod tests {
     }
 
     #[test]
-    fn burst_paste_drops_spurious_malloc_stacklogging_text() {
+    fn burst_paste_quarantines_spurious_malloc_stacklogging_text() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
         let sender = AppEventSender::new(tx);
         let mut composer = ChatComposer::new(
@@ -7692,12 +7699,27 @@ mod tests {
 
         let flush_time = now + PasteBurst::recommended_active_flush_delay() + step;
         let flushed = composer.handle_paste_burst_flush(flush_time);
-        assert!(flushed, "expected buffered diagnostic text to flush");
         assert!(
-            composer.textarea.text().is_empty(),
-            "expected diagnostic payload to be dropped"
+            flushed,
+            "expected buffered diagnostic text to flush as placeholder"
         );
-        assert!(composer.pending_pastes.is_empty());
+        let placeholder = format!("[Pasted Content {} chars]", message.chars().count());
+        assert!(
+            composer.textarea.text().contains(&placeholder),
+            "expected diagnostic payload to be quarantined as a placeholder"
+        );
+        assert_eq!(
+            composer.pending_pastes,
+            vec![(placeholder, message.to_string())]
+        );
+
+        composer.set_steer_enabled(true);
+        let (result, _) =
+            composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        match result {
+            InputResult::Submitted { text, .. } => assert_eq!(text, message),
+            other => panic!("expected Submitted, got {other:?}"),
+        }
     }
 
     #[test]
