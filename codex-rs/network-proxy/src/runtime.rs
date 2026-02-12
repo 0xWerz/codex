@@ -73,6 +73,12 @@ pub struct BlockedRequest {
     pub method: Option<String>,
     pub mode: Option<NetworkMode>,
     pub protocol: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decision: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
     pub timestamp: i64,
 }
 
@@ -83,6 +89,9 @@ pub struct BlockedRequestArgs {
     pub method: Option<String>,
     pub mode: Option<NetworkMode>,
     pub protocol: String,
+    pub decision: Option<String>,
+    pub source: Option<String>,
+    pub port: Option<u16>,
 }
 
 impl BlockedRequest {
@@ -94,6 +103,9 @@ impl BlockedRequest {
             method,
             mode,
             protocol,
+            decision,
+            source,
+            port,
         } = args;
         Self {
             host,
@@ -102,6 +114,9 @@ impl BlockedRequest {
             method,
             mode,
             protocol,
+            decision,
+            source,
+            port,
             timestamp: unix_timestamp(),
         }
     }

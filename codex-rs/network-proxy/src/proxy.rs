@@ -2,6 +2,7 @@ use crate::admin;
 use crate::config;
 use crate::http_proxy;
 use crate::network_policy::NetworkPolicyDecider;
+use crate::runtime::BlockedRequest;
 use crate::runtime::unix_socket_permissions_supported;
 use crate::socks5;
 use crate::state::NetworkProxyState;
@@ -398,6 +399,11 @@ impl NetworkProxy {
     /// `grant_temporary_allowed_host`.
     pub async fn revoke_temporary_allowed_host(&self, host: &str) {
         self.state.revoke_temporary_allowed_host(host).await;
+    }
+
+    /// Drains proxy-blocked request telemetry entries.
+    pub async fn drain_blocked_requests(&self) -> Result<Vec<BlockedRequest>> {
+        self.state.drain_blocked().await
     }
 
     pub fn apply_to_env(&self, env: &mut HashMap<String, String>) {
