@@ -1,6 +1,7 @@
 {
-  "models": [ 
+  "models": [
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": true,
       "default_verbosity": "low",
@@ -68,6 +69,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": false,
       "default_verbosity": null,
@@ -139,6 +141,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": false,
       "default_verbosity": null,
@@ -203,6 +206,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": false,
       "default_verbosity": null,
@@ -263,6 +267,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": true,
       "default_verbosity": "low",
@@ -327,6 +332,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": true,
       "default_verbosity": "low",
@@ -387,6 +393,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": false,
       "default_verbosity": null,
@@ -447,6 +454,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": true,
       "default_verbosity": null,
@@ -511,6 +519,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": false,
       "default_verbosity": null,
@@ -567,6 +576,7 @@
       ]
     },
     {
+      "prefer_websockets": false,
       "supports_reasoning_summaries": true,
       "support_verbosity": false,
       "default_verbosity": null,
