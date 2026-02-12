@@ -263,7 +263,8 @@ mod tests {
     use super::*;
     use crate::config::ConfigBuilder;
     use crate::features::Feature;
-    use crate::skills::load_skills;
+    use crate::skills::SkillMetadata;
+    use codex_protocol::protocol::SkillScope;
     use std::fs;
     use std::path::PathBuf;
     use tempfile::TempDir;
@@ -541,21 +542,17 @@ mod tests {
             "pdf-processing",
             "extract from pdfs",
         );
+        let skill = test_skill_metadata(
+            cfg.codex_home.clone(),
+            "pdf-processing",
+            "extract from pdfs",
+        );
+        let skills = vec![skill.clone()];
 
-        let skills = load_skills(&cfg);
-        let res = get_user_instructions(
-            &cfg,
-            skills.errors.is_empty().then_some(skills.skills.as_slice()),
-        )
-        .await
-        .expect("instructions expected");
-        let expected_path = dunce::canonicalize(
-            cfg.codex_home
-                .join("skills/pdf-processing/SKILL.md")
-                .as_path(),
-        )
-        .unwrap_or_else(|_| cfg.codex_home.join("skills/pdf-processing/SKILL.md"));
-        let expected_path_str = expected_path.to_string_lossy().replace('\\', "/");
+        let res = get_user_instructions(&cfg, Some(skills.as_slice()))
+            .await
+            .expect("instructions expected");
+        let expected_path_str = skill.path.to_string_lossy().replace('\\', "/");
         let usage_rules = "- Discovery: The list above is the skills available in this session (name + description + file path). Skill bodies live on disk at the listed paths.\n- Trigger rules: If the user names a skill (with `$SkillName` or plain text) OR the task clearly matches a skill's description shown above, you must use that skill for that turn. Multiple mentions mean use them all. Do not carry skills across turns unless re-mentioned.\n- Missing/blocked: If a named skill isn't in the list or the path can't be read, say so briefly and continue with the best fallback.\n- How to use a skill (progressive disclosure):\n  1) After deciding to use a skill, open its `SKILL.md`. Read only enough to follow the workflow.\n  2) When `SKILL.md` references relative paths (e.g., `scripts/foo.py`), resolve them relative to the skill directory listed above first, and only consider other paths if needed.\n  3) If `SKILL.md` points to extra folders such as `references/`, load only the specific files needed for the request; don't bulk-load everything.\n  4) If `scripts/` exist, prefer running or patching them instead of retyping large code blocks.\n  5) If `assets/` or templates exist, reuse them instead of recreating from scratch.\n- Coordination and sequencing:\n  - If multiple skills apply, choose the minimal set that covers the request and state the order you'll use them.\n  - Announce which skill(s) you're using and why (one short line). If you skip an obvious skill, say why.\n- Context hygiene:\n  - Keep context small: summarize long sections instead of pasting them; only load extra files when needed.\n  - Avoid deep reference-chasing: prefer opening only files directly linked from `SKILL.md` unless you're blocked.\n  - When variants exist (frameworks, providers, domains), pick only the relevant reference file(s) and note that choice.\n- Safety and fallback: If a skill can't be applied cleanly (missing files, unclear instructions), state the issue, pick the next-best approach, and continue.";
         let expected = format!(
             "base doc\n\n## Skills\nA skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.\n### Available skills\n- pdf-processing: extract from pdfs (file: {expected_path_str})\n### How to use skills\n{usage_rules}"
@@ -568,18 +565,13 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let cfg = make_config(&tmp, 4096, None).await;
         create_skill(cfg.codex_home.clone(), "linting", "run clippy");
+        let skill = test_skill_metadata(cfg.codex_home.clone(), "linting", "run clippy");
+        let skills = vec![skill.clone()];
 
-        let skills = load_skills(&cfg);
-        let res = get_user_instructions(
-            &cfg,
-            skills.errors.is_empty().then_some(skills.skills.as_slice()),
-        )
-        .await
-        .expect("instructions expected");
-        let expected_path =
-            dunce::canonicalize(cfg.codex_home.join("skills/linting/SKILL.md").as_path())
-                .unwrap_or_else(|_| cfg.codex_home.join("skills/linting/SKILL.md"));
-        let expected_path_str = expected_path.to_string_lossy().replace('\\', "/");
+        let res = get_user_instructions(&cfg, Some(skills.as_slice()))
+            .await
+            .expect("instructions expected");
+        let expected_path_str = skill.path.to_string_lossy().replace('\\', "/");
         let usage_rules = "- Discovery: The list above is the skills available in this session (name + description + file path). Skill bodies live on disk at the listed paths.\n- Trigger rules: If the user names a skill (with `$SkillName` or plain text) OR the task clearly matches a skill's description shown above, you must use that skill for that turn. Multiple mentions mean use them all. Do not carry skills across turns unless re-mentioned.\n- Missing/blocked: If a named skill isn't in the list or the path can't be read, say so briefly and continue with the best fallback.\n- How to use a skill (progressive disclosure):\n  1) After deciding to use a skill, open its `SKILL.md`. Read only enough to follow the workflow.\n  2) When `SKILL.md` references relative paths (e.g., `scripts/foo.py`), resolve them relative to the skill directory listed above first, and only consider other paths if needed.\n  3) If `SKILL.md` points to extra folders such as `references/`, load only the specific files needed for the request; don't bulk-load everything.\n  4) If `scripts/` exist, prefer running or patching them instead of retyping large code blocks.\n  5) If `assets/` or templates exist, reuse them instead of recreating from scratch.\n- Coordination and sequencing:\n  - If multiple skills apply, choose the minimal set that covers the request and state the order you'll use them.\n  - Announce which skill(s) you're using and why (one short line). If you skip an obvious skill, say why.\n- Context hygiene:\n  - Keep context small: summarize long sections instead of pasting them; only load extra files when needed.\n  - Avoid deep reference-chasing: prefer opening only files directly linked from `SKILL.md` unless you're blocked.\n  - When variants exist (frameworks, providers, domains), pick only the relevant reference file(s) and note that choice.\n- Safety and fallback: If a skill can't be applied cleanly (missing files, unclear instructions), state the issue, pick the next-best approach, and continue.";
         let expected = format!(
             "## Skills\nA skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.\n### Available skills\n- linting: run clippy (file: {expected_path_str})\n### How to use skills\n{usage_rules}"
@@ -616,5 +608,20 @@ mod tests {
         fs::create_dir_all(&skill_dir).unwrap();
         let content = format!("---\nname: {name}\ndescription: {description}\n---\n\n# Body\n");
         fs::write(skill_dir.join("SKILL.md"), content).unwrap();
+    }
+
+    fn test_skill_metadata(codex_home: PathBuf, name: &str, description: &str) -> SkillMetadata {
+        let path = codex_home.join(format!("skills/{name}/SKILL.md"));
+        let path = dunce::canonicalize(path.as_path()).unwrap_or(path);
+        SkillMetadata {
+            name: name.to_string(),
+            description: description.to_string(),
+            short_description: None,
+            interface: None,
+            dependencies: None,
+            policy: None,
+            path,
+            scope: SkillScope::User,
+        }
     }
 }
